@@ -1,4 +1,7 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:recall_it/sqflite_crud_operations.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,12 +13,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Recallit',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Recallit'),
     );
   }
 }
@@ -30,11 +33,22 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _colorController = TextEditingController();
+  final SqfliteCrudOperations _dbOperations = SqfliteCrudOperations();
 
-  void _incrementCounter() {
+  List<Map<String, dynamic>> _loadedPoints = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPointsFromDatabase();
+  }
+
+  Future<void> _fetchPointsFromDatabase() async {
+    final points = await _dbOperations.getPoints();
     setState(() {
-      _counter++;
+      _loadedPoints = points;
     });
   }
 
@@ -49,21 +63,68 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextFormField(
+                controller: _colorController,
+                decoration: const InputDecoration(
+                  labelText: 'Hex Color Value',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _loadedPoints.length,
+                itemBuilder: (context, index) {
+                  final point = _loadedPoints[index];
+                  return ListTile(
+                    title: Text(point['description']),
+                    subtitle: Text('ID: ${point['id']}, '
+                        'Description: ${point['description']}, '
+                        'Color: ${point['color']}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete),
+                      color: Colors.red,
+                      onPressed: () async {
+                        await _dbOperations.deletePoint(point['id']);
+                        await _fetchPointsFromDatabase();
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
+        onPressed: _addPoint,
+        tooltip: 'Add point',
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Future<void> _addPoint() async {
+    final description = _descriptionController.text;
+    final colorHex = _colorController.text;
+
+    if (description.isNotEmpty && colorHex.isNotEmpty) {
+      await _dbOperations.insertPoint(description, colorHex);
+      await _fetchPointsFromDatabase();
+      _descriptionController.clear();
+      _colorController.clear();
+    }
   }
 }
