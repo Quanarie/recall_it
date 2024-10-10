@@ -1,27 +1,24 @@
-import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+
+import 'models/point.dart';
 
 class SqfliteCrudOperations {
   Future<Database> openDb() async {
-    return await openDatabase(join(await getDatabasesPath(), 'myDb.db'),
-        version: 1, onCreate: (db, version) {
-      return db.execute(
-        'CREATE TABLE point('
-        'id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, '
-        'description TEXT, '
-        'color TEXT)',
-      );
-    });
+    var databasesPath = await getDatabasesPath();
+    var path = '$databasesPath/myDb5.db';
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) {
+        return db.execute(Point.getCreateQuery());
+      },
+    );
   }
 
-  Future<void> insertPoint(String description, String color) async {
+  Future<void> insertPoint(Point point) async {
     final db = await openDb();
-    db.insert(
-        'point',
-        {
-          'description': description,
-          'color': color,
-        },
+    db.insert('point', point.toMap(),
         conflictAlgorithm: ConflictAlgorithm.rollback);
   }
 
@@ -30,20 +27,15 @@ class SqfliteCrudOperations {
     db.delete('point', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> updatePoint(int id, String description, String color) async {
+  Future<List<Point>> getPoints() async {
     final db = await openDb();
-    db.update(
-        'point',
-        {
-          'description': description,
-          'color': color,
-        },
-        where: 'id = ?',
-        whereArgs: [id]);
-  }
+    final List<Map<String, dynamic>> map = await db.query('point');
 
-  Future<List<Map<String, dynamic>>> getPoints() async {
-    final db = await openDb();
-    return await db.query('point');
+    return List.generate(
+      map.length,
+      (index) {
+        return Point.fromMap(map[index]);
+      },
+    );
   }
 }
