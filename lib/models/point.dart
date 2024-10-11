@@ -1,3 +1,5 @@
+import 'package:latlong2/latlong.dart';
+
 class Point {
   final int? id;
   final double latitude;
@@ -9,13 +11,17 @@ class Point {
     this.id,
     required this.latitude,
     required this.longitude,
-    this.description = "",
+    this.description = "No description",
     this.hexColor = "FF000000",
   });
 
   @override
   String toString() {
     return "LatLng($latitude:$longitude)";
+  }
+
+  LatLng toLatLng() {
+    return LatLng(latitude, longitude);
   }
 
   Map<String, dynamic> toMap() {

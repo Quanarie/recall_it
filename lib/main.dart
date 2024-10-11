@@ -1,4 +1,5 @@
-import 'dart:developer';
+// import 'dart:developer' as dev;
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -38,8 +39,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final SqfliteCrudOperations _dbOperations = SqfliteCrudOperations();
+  final mapController = MapController();
 
   List<Point> _loadedPointsToDisplay = [];
+  int? _indexOfPointWithVisibleDescription;
+
+  static double tapThresholdScreenDistance = 20;
 
   @override
   void initState() {
@@ -52,7 +57,6 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _loadedPointsToDisplay = points;
     });
-    // log("Loaded: ${_loadedPointsToDisplay.map((e) => e.toString()).join(", ")}");
   }
 
   @override
@@ -62,6 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: FlutterMap(
+        mapController: mapController,
         options: MapOptions(
           onTap: (tapPosition, point) {
             _onMapTap(point);
@@ -75,41 +80,135 @@ class _MyHomePageState extends State<MyHomePage> {
             userAgentPackageName: 'com.example.app',
           ),
           MarkerLayer(
-            markers: _loadedPointsToDisplay.map((point) {
-              return Marker(
-                width: 80.0,
-                height: 80.0,
-                point: _pointToLatLng(point),
-                child: Icon(Icons.location_on,
-                    color: _hexToColor(point.hexColor), size: 40),
-              );
-            }).toList(),
+            markers: _loadedPointsToDisplay.map(
+              (point) {
+                return Marker(
+                  width: 80.0,
+                  height: 80.0,
+                  point: point.toLatLng(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_indexOfPointWithVisibleDescription != null &&
+                          _indexOfPointWithVisibleDescription ==
+                              _loadedPointsToDisplay.indexOf(point))
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 4.0),
+                          child: Text(
+                            point.description,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      Icon(
+                        Icons.location_on,
+                        color: _hexToColor(point.hexColor),
+                        size: 40,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ).toList(),
           ),
         ],
       ),
     );
   }
 
-  void _onMapTap(LatLng point) {
-    _savePoint(
-      Point(
-        latitude: point.latitude,
-        longitude: point.longitude,
-      ),
-    );
-    _fetchPointsFromDatabase();
+  void _onMapTap(LatLng tapCoordinates) {
+    LatLng? coordinatesToBeSavedAsPoint;
+
+    var noPointsOnMap = _loadedPointsToDisplay.isEmpty;
+
+    if (noPointsOnMap) {
+      coordinatesToBeSavedAsPoint = tapCoordinates;
+    } else {
+      var indexOfClosestPointToTap = _findClosestPointIndex(tapCoordinates);
+      if (_arePointsCloseEnoughOnScreen(tapCoordinates,
+          _loadedPointsToDisplay[indexOfClosestPointToTap!].toLatLng())) {
+
+        if (_indexOfPointWithVisibleDescription == indexOfClosestPointToTap) {
+          _closeVisiblePointDescription();
+        } else {
+          _openDescriptionOfPoint(indexOfClosestPointToTap);
+        }
+      } else {
+        coordinatesToBeSavedAsPoint = tapCoordinates;
+      }
+    }
+
+    if (coordinatesToBeSavedAsPoint != null) {
+      _savePoint(
+        Point(
+          latitude: coordinatesToBeSavedAsPoint.latitude,
+          longitude: coordinatesToBeSavedAsPoint.longitude,
+        ),
+      );
+      _fetchPointsFromDatabase();
+    }
+  }
+
+  int? _findClosestPointIndex(LatLng point) {
+    double closestDistance = double.infinity;
+    int? closestIndex;
+    double distance = closestDistance;
+
+    for (int i = 0; i < _loadedPointsToDisplay.length; i++) {
+      Point loadedPoint = _loadedPointsToDisplay[i];
+      distance = _calculateDistance(
+        point,
+        loadedPoint.toLatLng(),
+      );
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = i;
+      }
+    }
+
+    return closestIndex;
+  }
+
+  double _calculateDistance(LatLng p1, LatLng p2) {
+    var p = 0.017453292519943295;
+    var c = cos;
+    var a = 0.5 -
+        c((p2.latitude - p1.latitude) * p) / 2 +
+        c(p1.latitude * p) *
+            c(p2.latitude * p) *
+            (1 - c((p2.longitude - p1.longitude) * p)) /
+            2;
+    return 12742 * asin(sqrt(a));
+  }
+
+  bool _arePointsCloseEnoughOnScreen(LatLng point1, LatLng point2) {
+    var camera = mapController.camera;
+    var p1 = camera.latLngToScreenPoint(point1);
+    var p2 = camera.latLngToScreenPoint(point2);
+    return p1.distanceTo(p2) <= tapThresholdScreenDistance;
+  }
+
+  void _openDescriptionOfPoint(int indexOfClosestPointToTap) {
+    _indexOfPointWithVisibleDescription = indexOfClosestPointToTap;
+    setState(() {});
+  }
+
+  void _closeVisiblePointDescription() {
+    _indexOfPointWithVisibleDescription = null;
+    setState(() {});
   }
 
   void _savePoint(Point point) {
     _dbOperations.insertPoint(point);
   }
 
-  LatLng _pointToLatLng(Point point) {
-    return LatLng(point.latitude, point.longitude);
-  }
-
   Color _hexToColor(String hexColor) {
-    // log("Parsing $hexColor to ${int.parse(hexColor, radix: 16)}");
     return Color(int.parse(hexColor, radix: 16));
   }
 }

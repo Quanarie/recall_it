@@ -5,7 +5,7 @@ import 'models/point.dart';
 class SqfliteCrudOperations {
   Future<Database> openDb() async {
     var databasesPath = await getDatabasesPath();
-    var path = '$databasesPath/myDb9.db';
+    var path = '$databasesPath/myDb12.db';
 
     return await openDatabase(
       path,
