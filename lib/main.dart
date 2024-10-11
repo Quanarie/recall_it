@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -37,7 +39,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final SqfliteCrudOperations _dbOperations = SqfliteCrudOperations();
 
-  List<LatLng> _loadedPointsToDisplay = [];
+  List<Point> _loadedPointsToDisplay = [];
 
   @override
   void initState() {
@@ -48,10 +50,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _fetchPointsFromDatabase() async {
     final points = await _dbOperations.getPoints();
     setState(() {
-      _loadedPointsToDisplay = points
-          .map((point) => LatLng(point.latitude, point.longitude))
-          .toList();
+      _loadedPointsToDisplay = points;
     });
+    // log("Loaded: ${_loadedPointsToDisplay.map((e) => e.toString()).join(", ")}");
   }
 
   @override
@@ -78,9 +79,9 @@ class _MyHomePageState extends State<MyHomePage> {
               return Marker(
                 width: 80.0,
                 height: 80.0,
-                point: point,
-                child:
-                    const Icon(Icons.location_on, color: Colors.red, size: 40),
+                point: _pointToLatLng(point),
+                child: Icon(Icons.location_on,
+                    color: _hexToColor(point.hexColor), size: 40),
               );
             }).toList(),
           ),
@@ -103,79 +104,12 @@ class _MyHomePageState extends State<MyHomePage> {
     _dbOperations.insertPoint(point);
   }
 
-// @override
-// Widget build(BuildContext context) {
-//   return Scaffold(
-//     appBar: AppBar(
-//       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-//       title: Text(widget.title),
-//     ),
-//     body: Center(
-//       child: Column(
-//         mainAxisAlignment: MainAxisAlignment.center,
-//         children: <Widget>[
-//           Padding(
-//             padding: const EdgeInsets.all(8.0),
-//             child: TextFormField(
-//               controller: _descriptionController,
-//               decoration: const InputDecoration(
-//                 labelText: 'Description',
-//                 border: OutlineInputBorder(),
-//               ),
-//             ),
-//           ),
-//           Padding(
-//             padding: const EdgeInsets.all(8.0),
-//             child: TextFormField(
-//               controller: _colorController,
-//               decoration: const InputDecoration(
-//                 labelText: 'Hex Color Value',
-//                 border: OutlineInputBorder(),
-//               ),
-//             ),
-//           ),
-//           Expanded(
-//             child: ListView.builder(
-//               itemCount: _loadedPoints.length,
-//               itemBuilder: (context, index) {
-//                 final point = _loadedPoints[index];
-//                 return ListTile(
-//                   title: Text(point['description']),
-//                   subtitle: Text('ID: ${point['id']}, '
-//                       'Description: ${point['description']}, '
-//                       'Color: ${point['color']}'),
-//                   trailing: IconButton(
-//                     icon: const Icon(Icons.delete),
-//                     color: Colors.red,
-//                     onPressed: () async {
-//                       await _dbOperations.deletePoint(point['id']);
-//                       await _fetchPointsFromDatabase();
-//                     },
-//                   ),
-//                 );
-//               },
-//             ),
-//           ),
-//         ],
-//       ),
-//     ),
-//     floatingActionButton: FloatingActionButton(
-//       onPressed: _addPoint,
-//       tooltip: 'Add point',
-//       child: const Icon(Icons.add),
-//     ),
-//   );
-// }
+  LatLng _pointToLatLng(Point point) {
+    return LatLng(point.latitude, point.longitude);
+  }
 
-// Future<void> _addPoint() async {
-//   final description = _descriptionController.text;
-//   final colorHex = _colorController.text;
-//
-//   if (description.isNotEmpty && colorHex.isNotEmpty) {
-//     await _dbOperations.insertPoint(description, colorHex);
-//     await _fetchPointsFromDatabase();
-//     _descriptionController.clear();
-//     _colorController.clear();
-//   }
-// }
+  Color _hexToColor(String hexColor) {
+    // log("Parsing $hexColor to ${int.parse(hexColor, radix: 16)}");
+    return Color(int.parse(hexColor, radix: 16));
+  }
 }

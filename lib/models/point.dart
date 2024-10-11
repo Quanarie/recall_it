@@ -2,16 +2,21 @@ class Point {
   final int? id;
   final double latitude;
   final double longitude;
-  final String? description;
-  final String? color;
+  final String description;
+  final String hexColor;
 
   Point({
     this.id,
     required this.latitude,
     required this.longitude,
-    this.description,
-    this.color,
+    this.description = "",
+    this.hexColor = "FF000000",
   });
+
+  @override
+  String toString() {
+    return "LatLng($latitude:$longitude)";
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -19,7 +24,7 @@ class Point {
       'latitude': latitude,
       'longitude': longitude,
       'description': description,
-      'color': color,
+      'hexColor': hexColor,
     };
   }
 
@@ -29,7 +34,7 @@ class Point {
       latitude: map['latitude'],
       longitude: map['longitude'],
       description: map['description'],
-      color: map['color'],
+      hexColor: map['hexColor'],
     );
   }
 
@@ -39,6 +44,6 @@ class Point {
         'latitude REAL,'
         'longitude REAL,'
         'description TEXT, '
-        'color TEXT)';
+        'hexColor TEXT)';
   }
 }
