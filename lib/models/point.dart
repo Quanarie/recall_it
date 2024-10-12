@@ -1,11 +1,11 @@
 import 'package:latlong2/latlong.dart';
 
 class Point {
-  final int? id;
-  final double latitude;
-  final double longitude;
-  final String description;
-  final String hexColor;
+  int? id;
+  double latitude;
+  double longitude;
+  String description;
+  String hexColor;
 
   Point({
     this.id,
@@ -22,6 +22,13 @@ class Point {
 
   LatLng toLatLng() {
     return LatLng(latitude, longitude);
+  }
+
+  factory Point.fromLatLng(LatLng coordinates) {
+    return Point(
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    );
   }
 
   Map<String, dynamic> toMap() {

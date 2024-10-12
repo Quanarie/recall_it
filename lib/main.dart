@@ -46,6 +46,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   static double tapThresholdScreenDistance = 20;
 
+  Offset? _startingOffsetForDraggedPoint;
+
   @override
   void initState() {
     super.initState();
@@ -81,36 +83,65 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           MarkerLayer(
             markers: _loadedPointsToDisplay.map(
-              (point) {
+              (pointToBeMarkedOnMap) {
                 return Marker(
                   width: 80.0,
                   height: 80.0,
-                  point: point.toLatLng(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_indexOfPointWithVisibleDescription != null &&
-                          _indexOfPointWithVisibleDescription ==
-                              _loadedPointsToDisplay.indexOf(point))
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 4.0),
-                          child: Text(
-                            point.description,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                  point: pointToBeMarkedOnMap.toLatLng(),
+                  child: GestureDetector(
+                    onLongPressStart: (details) {
+                      _startingOffsetForDraggedPoint = mapController.camera
+                          .latLngToScreenPoint(pointToBeMarkedOnMap.toLatLng())
+                          .toOffset();
+                    },
+                    onLongPressMoveUpdate: (details) {
+                      setState(() {
+                        Offset offsetInPixels = details.offsetFromOrigin;
+
+                        Offset newScreenPosition =
+                            _startingOffsetForDraggedPoint! + offsetInPixels;
+                        LatLng newWorldPosition =
+                            mapController.camera.offsetToCrs(newScreenPosition);
+
+                        pointToBeMarkedOnMap.latitude =
+                            newWorldPosition.latitude;
+                        pointToBeMarkedOnMap.longitude =
+                            newWorldPosition.longitude;
+                      });
+                    },
+                    onLongPressEnd: (details) {
+                      _dbOperations.updatePointCoordinates(
+                          pointToBeMarkedOnMap.id!,
+                          pointToBeMarkedOnMap.toLatLng());
+                      _fetchPointsFromDatabase();
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          color: _hexToColor(pointToBeMarkedOnMap.hexColor),
+                          size: 40,
                         ),
-                      Icon(
-                        Icons.location_on,
-                        color: _hexToColor(point.hexColor),
-                        size: 40,
-                      ),
-                    ],
+                        if (_indexOfPointWithVisibleDescription != null &&
+                            _indexOfPointWithVisibleDescription ==
+                                _loadedPointsToDisplay
+                                    .indexOf(pointToBeMarkedOnMap))
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 4.0),
+                            child: Text(
+                              pointToBeMarkedOnMap.description,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -132,7 +163,6 @@ class _MyHomePageState extends State<MyHomePage> {
       var indexOfClosestPointToTap = _findClosestPointIndex(tapCoordinates);
       if (_arePointsCloseEnoughOnScreen(tapCoordinates,
           _loadedPointsToDisplay[indexOfClosestPointToTap!].toLatLng())) {
-
         if (_indexOfPointWithVisibleDescription == indexOfClosestPointToTap) {
           _closeVisiblePointDescription();
         } else {
@@ -144,12 +174,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     if (coordinatesToBeSavedAsPoint != null) {
-      _savePoint(
-        Point(
-          latitude: coordinatesToBeSavedAsPoint.latitude,
-          longitude: coordinatesToBeSavedAsPoint.longitude,
-        ),
-      );
+      _savePoint(Point.fromLatLng(coordinatesToBeSavedAsPoint));
       _fetchPointsFromDatabase();
     }
   }
