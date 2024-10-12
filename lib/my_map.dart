@@ -1,8 +1,11 @@
 // import 'dart:developer' as dev;
+import 'dart:developer' as dev;
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:recall_it/db_operations.dart';
 
@@ -25,14 +28,66 @@ class _MyMapState extends State<MyMap> {
   List<MyPoint> _loadedPointsToDisplay = [];
   int? _indexOfPointWithVisibleDescription;
 
-  static double tapThresholdScreenDistance = 20;
+  static double tapThresholdScreenDistance = 50;
 
   Offset? _startingPointDragPosition;
+
+  LatLng? _userCoordinates;
+  Timer? _updateUserPositionTimer;
+  static double zoomInUserLocationValue = 15.0;
 
   @override
   void initState() {
     super.initState();
+    _requestLocationPermission();
+    _updateUserPositionTimer =
+        Timer.periodic(const Duration(seconds: 5), (timer) {
+      _getUserLocation();
+    });
+
     _fetchAndUpdatePoints();
+  }
+
+  @override
+  void dispose() {
+    _updateUserPositionTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _requestLocationPermission() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          dev.log("Location permissions are denied");
+        });
+      } else if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          dev.log("Location permissions are permanently denied");
+        });
+      } else {
+        dev.log("Location permissions granted");
+      }
+    } else if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        dev.log("Location permissions are permanently denied");
+      });
+    } else {
+      dev.log("Location permissions granted");
+    }
+  }
+
+  Future<void> _getUserLocation() async {
+    dev.log("getting user locatrion");
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    setState(() {
+      _userCoordinates = LatLng(position.latitude, position.longitude);
+    });
   }
 
   Future<void> _fetchAndUpdatePoints() async {
@@ -56,6 +111,8 @@ class _MyMapState extends State<MyMap> {
           },
           initialCenter: const LatLng(51.509364, -0.128928),
           initialZoom: 3.2,
+          interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
         ),
         children: [
           TileLayer(
@@ -63,58 +120,79 @@ class _MyMapState extends State<MyMap> {
             userAgentPackageName: 'com.example.app',
           ),
           MarkerLayer(
-            markers: _loadedPointsToDisplay.map(
-              (pointToBeMarkedOnMap) {
-                return Marker(
+            markers: [
+              ..._loadedPointsToDisplay.map(
+                (pointToBeMarkedOnMap) {
+                  return Marker(
+                    width: 80.0,
+                    height: 80.0,
+                    point: pointToBeMarkedOnMap.toLatLng(),
+                    child: GestureDetector(
+                      onLongPressStart: (details) {
+                        _rememberPointDragStartPosition(pointToBeMarkedOnMap);
+                      },
+                      onLongPressMoveUpdate: (details) {
+                        _moveDraggedPointOnMap(details, pointToBeMarkedOnMap);
+                      },
+                      onLongPressEnd: (details) {
+                        _updatePointPositionInDb(pointToBeMarkedOnMap);
+                        _fetchAndUpdatePoints();
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: hexToColor(pointToBeMarkedOnMap.hexColor),
+                            size: 40,
+                          ),
+                          if (_indexOfPointWithVisibleDescription != null &&
+                              _indexOfPointWithVisibleDescription ==
+                                  _loadedPointsToDisplay
+                                      .indexOf(pointToBeMarkedOnMap))
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 4.0),
+                              child: Text(
+                                pointToBeMarkedOnMap.description,
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              if (_userCoordinates != null)
+                Marker(
                   width: 80.0,
                   height: 80.0,
-                  point: pointToBeMarkedOnMap.toLatLng(),
-                  child: GestureDetector(
-                    onLongPressStart: (details) {
-                      _rememberPointDragStartPosition(pointToBeMarkedOnMap);
-                    },
-                    onLongPressMoveUpdate: (details) {
-                      _moveDraggedPointOnMap(details, pointToBeMarkedOnMap);
-                    },
-                    onLongPressEnd: (details) {
-                      _updatePointPositionInDb(pointToBeMarkedOnMap);
-                      _fetchAndUpdatePoints();
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          color: hexToColor(pointToBeMarkedOnMap.hexColor),
-                          size: 40,
-                        ),
-                        if (_indexOfPointWithVisibleDescription != null &&
-                            _indexOfPointWithVisibleDescription ==
-                                _loadedPointsToDisplay
-                                    .indexOf(pointToBeMarkedOnMap))
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 4.0),
-                            child: Text(
-                              pointToBeMarkedOnMap.description,
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ).toList(),
+                  point: _userCoordinates!,
+                  child: const Icon(Icons.location_on,
+                      color: Colors.red, size: 45),
+                ),
+            ],
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _zoomToUserLocation,
+        tooltip: 'Zoom to My Location',
+        child: const Icon(Icons.my_location),
+      ),
     );
+  }
+
+  void _zoomToUserLocation() {
+    if (_userCoordinates != null) {
+      mapController.move(_userCoordinates!, zoomInUserLocationValue);
+    }
   }
 
   void _rememberPointDragStartPosition(MyPoint pointToBeMarkedOnMap) {
@@ -142,7 +220,7 @@ class _MyMapState extends State<MyMap> {
     if (_loadedPointsToDisplay.isEmpty) {
       coordinatesToBeSavedAsPoint = tapCoordinates;
     } else {
-      var indexOfClosestPointToTap = _findClosestPoint(tapCoordinates)!.id;
+      var indexOfClosestPointToTap = _findClosestPointIndex(tapCoordinates);
       if (_arePointsCloseEnoughOnScreen(tapCoordinates,
           _loadedPointsToDisplay[indexOfClosestPointToTap!].toLatLng())) {
         if (_indexOfPointWithVisibleDescription == indexOfClosestPointToTap) {
@@ -161,9 +239,9 @@ class _MyMapState extends State<MyMap> {
     }
   }
 
-  MyPoint? _findClosestPoint(LatLng point) {
+  int? _findClosestPointIndex(LatLng point) {
     double closestDistance = double.infinity;
-    MyPoint? closestPoint;
+    int? closestPoint;
 
     for (int i = 0; i < _loadedPointsToDisplay.length; i++) {
       MyPoint loadedPoint = _loadedPointsToDisplay[i];
@@ -174,7 +252,7 @@ class _MyMapState extends State<MyMap> {
 
       if (distance < closestDistance) {
         closestDistance = distance;
-        closestPoint = _loadedPointsToDisplay[i];
+        closestPoint = i;
       }
     }
 
