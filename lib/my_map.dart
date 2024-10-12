@@ -1,6 +1,6 @@
 // import 'dart:developer' as dev;
-import 'dart:developer' as dev;
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -80,7 +80,6 @@ class _MyMapState extends State<MyMap> {
   }
 
   Future<void> _getUserLocation() async {
-    dev.log("getting user locatrion");
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -117,53 +116,60 @@ class _MyMapState extends State<MyMap> {
         children: [
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.app',
+            userAgentPackageName: 'recall.it',
           ),
           MarkerLayer(
             markers: [
               ..._loadedPointsToDisplay.map(
                 (pointToBeMarkedOnMap) {
                   return Marker(
-                    width: 80.0,
-                    height: 80.0,
+                    width: 120.0,
+                    height: 120.0,
                     point: pointToBeMarkedOnMap.toLatLng(),
-                    child: GestureDetector(
-                      onLongPressStart: (details) {
-                        _rememberPointDragStartPosition(pointToBeMarkedOnMap);
-                      },
-                      onLongPressMoveUpdate: (details) {
-                        _moveDraggedPointOnMap(details, pointToBeMarkedOnMap);
-                      },
-                      onLongPressEnd: (details) {
-                        _updatePointPositionInDb(pointToBeMarkedOnMap);
-                        _fetchAndUpdatePoints();
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            color: hexToColor(pointToBeMarkedOnMap.hexColor),
-                            size: 40,
-                          ),
-                          if (_indexOfPointWithVisibleDescription != null &&
-                              _indexOfPointWithVisibleDescription ==
-                                  _loadedPointsToDisplay
-                                      .indexOf(pointToBeMarkedOnMap))
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 4.0),
-                              child: Text(
-                                pointToBeMarkedOnMap.description,
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                    child: Center(
+                      child: GestureDetector(
+                        onLongPressStart: (details) {
+                          _rememberPointDragStartPosition(pointToBeMarkedOnMap);
+                        },
+                        onLongPressMoveUpdate: (details) {
+                          _moveDraggedPointOnMap(details, pointToBeMarkedOnMap);
+                        },
+                        onLongPressEnd: (details) {
+                          _updatePointPositionInDb(pointToBeMarkedOnMap);
+                          _fetchAndUpdatePoints();
+                        },
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              color: hexToColor(pointToBeMarkedOnMap.hexColor),
+                              size: 40,
                             ),
-                        ],
+                            if (_indexOfPointWithVisibleDescription != null &&
+                                _indexOfPointWithVisibleDescription ==
+                                    _loadedPointsToDisplay
+                                        .indexOf(pointToBeMarkedOnMap))
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red, size: 24),
+                                  tooltip: 'Delete point',
+                                  onPressed: () {
+                                    _indexOfPointWithVisibleDescription = null;
+                                    _deletePoint(pointToBeMarkedOnMap);
+                                    _fetchAndUpdatePoints();
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -184,7 +190,8 @@ class _MyMapState extends State<MyMap> {
       floatingActionButton: FloatingActionButton(
         onPressed: _zoomToUserLocation,
         tooltip: 'Zoom to My Location',
-        child: const Icon(Icons.my_location),
+        backgroundColor: Colors.black,
+        child: const Icon(Icons.my_location, color: Colors.white),
       ),
     );
   }
@@ -294,5 +301,9 @@ class _MyMapState extends State<MyMap> {
   void _updatePointPositionInDb(MyPoint pointToBeMarkedOnMap) {
     _dbOperations.updatePointCoordinates(
         pointToBeMarkedOnMap.id!, pointToBeMarkedOnMap.toLatLng());
+  }
+
+  void _deletePoint(MyPoint pointToBeDeleted) {
+    _dbOperations.deletePoint(pointToBeDeleted.id!);
   }
 }
