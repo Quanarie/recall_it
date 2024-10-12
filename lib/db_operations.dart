@@ -1,7 +1,7 @@
 import 'package:latlong2/latlong.dart';
 import 'package:sqflite/sqflite.dart';
 
-import 'models/point.dart';
+import 'models/my_point.dart';
 
 class SqfliteCrudOperations {
   Future<Database> openDb() async {
@@ -12,12 +12,12 @@ class SqfliteCrudOperations {
       path,
       version: 1,
       onCreate: (db, version) {
-        return db.execute(Point.getCreateQuery());
+        return db.execute(MyPoint.getCreateQuery());
       },
     );
   }
 
-  Future<void> insertPoint(Point point) async {
+  Future<void> insertPoint(MyPoint point) async {
     final db = await openDb();
     db.insert('point', point.toMap(),
         conflictAlgorithm: ConflictAlgorithm.rollback);
@@ -41,14 +41,14 @@ class SqfliteCrudOperations {
     db.delete('point', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Point>> getPoints() async {
+  Future<List<MyPoint>> getPoints() async {
     final db = await openDb();
     final List<Map<String, dynamic>> map = await db.query('point');
 
     return List.generate(
       map.length,
       (index) {
-        return Point.fromMap(map[index]);
+        return MyPoint.fromMap(map[index]);
       },
     );
   }
