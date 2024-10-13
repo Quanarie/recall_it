@@ -1,3 +1,4 @@
+// import 'dart:developer' as dev;
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:math';
@@ -5,7 +6,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:recall_it/db_operations.dart';
 import 'package:recall_it/utils/my_tile_builder.dart';
@@ -33,28 +33,29 @@ class _MyMapState extends State<MyMap> {
 
   Offset? _startingPointDragPosition;
 
-  LatLng? _userCoordinates;
-  final StreamController<LocationMarkerPosition> _userPositionStreamController =
-      StreamController<LocationMarkerPosition>();
+  late final Stream<LocationMarkerPosition?> _userPositionStream;
+  LocationMarkerPosition? _mostRecentUserPosition;
+  late final Stream<LocationMarkerHeading?> _userHeadingStream;
   static double zoomInUserLocationValue = 15.0;
 
   @override
   void initState() {
     super.initState();
-    _requestLocationPermission();
-    _startListeningToUserLocationChanges();
+    _setupLocationStreams();
+    _listenToUserPositionChanges();
     _fetchAndUpdatePoints();
   }
 
-  Future<void> _startListeningToUserLocationChanges() async {
-    Geolocator.getPositionStream().listen((Position p) {
-      setState(() {
-        _userCoordinates = LatLng(p.latitude, p.longitude);
-        _userPositionStreamController.add(LocationMarkerPosition(
-            latitude: p.latitude,
-            longitude: p.longitude,
-            accuracy: p.accuracy));
-      });
+  Future<void> _setupLocationStreams() async {
+    const factory = LocationMarkerDataStreamFactory();
+    _userPositionStream =
+        factory.fromGeolocatorPositionStream().asBroadcastStream();
+    _userHeadingStream = factory.fromCompassHeadingStream().asBroadcastStream();
+  }
+
+  void _listenToUserPositionChanges() {
+    _userPositionStream.listen((position) {
+      _mostRecentUserPosition = position;
     });
   }
 
@@ -125,12 +126,12 @@ class _MyMapState extends State<MyMap> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.black87,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: IconButton(
                                   icon: const Icon(Icons.delete,
-                                      color: Colors.red, size: 24),
+                                      color: Colors.black87, size: 24),
                                   tooltip: 'Delete point',
                                   onPressed: () {
                                     _indexOfPointWithVisibleDescription = null;
@@ -149,24 +150,8 @@ class _MyMapState extends State<MyMap> {
             ],
           ),
           CurrentLocationLayer(
-            positionStream: _userPositionStreamController.stream,
-            style: LocationMarkerStyle(
-              marker: DefaultLocationMarker(
-                child: Container(
-                  width: 20.0,
-                  height: 20.0,
-                  decoration: const BoxDecoration(
-                    color: Color(0x907900FF),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              markerSize: const Size(20, 20),
-              markerDirection: MarkerDirection.heading,
-              headingSectorRadius: 100,
-              headingSectorColor: const Color(0x907900FF),
-              accuracyCircleColor: const Color(0x1AA327F5),
-            ),
+            positionStream: _userPositionStream,
+            headingStream: _userHeadingStream,
           ),
         ],
       ),
@@ -179,9 +164,12 @@ class _MyMapState extends State<MyMap> {
     );
   }
 
-  void _zoomToUserLocation() {
-    if (_userCoordinates != null) {
-      mapController.move(_userCoordinates!, zoomInUserLocationValue);
+  void _zoomToUserLocation() async {
+    if (_mostRecentUserPosition != null) {
+      mapController.move(
+          LatLng(_mostRecentUserPosition!.latitude,
+              _mostRecentUserPosition!.longitude),
+          zoomInUserLocationValue);
     }
   }
 
@@ -275,31 +263,6 @@ class _MyMapState extends State<MyMap> {
   void _closeVisiblePointDescription() {
     _indexOfPointWithVisibleDescription = null;
     setState(() {});
-  }
-
-  Future<void> _requestLocationPermission() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          dev.log("Location permissions are denied");
-        });
-      } else if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          dev.log("Location permissions are permanently denied");
-        });
-      } else {
-        dev.log("Location permissions granted");
-      }
-    } else if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        dev.log("Location permissions are permanently denied");
-      });
-    } else {
-      dev.log("Location permissions granted");
-    }
   }
 
   void _savePointToDb(MyPoint point) {
