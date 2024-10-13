@@ -90,8 +90,8 @@ class _MyMapState extends State<MyMap> {
             userAgentPackageName: 'recall.it',
             tileBuilder: myTileBuilder,
           ),
-          _getMarkerLayer(),
           _getUserLocationMarkerLayer(),
+          _getMarkerLayer(),
         ],
       ),
       floatingActionButton: FloatingActionButton(
