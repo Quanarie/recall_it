@@ -49,9 +49,9 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
     <string>We need your location to display it on the map.</string>
     <key>NSLocationAlwaysUsageDescription</key>
-    <string>We actually don't need location when app is in background. Just needed to add this warning so the project compiles.</string>
+    <string>We actually don't need location when app is in background. It is better to not allow it.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>We actually don't need location when app is in background. Just needed to add this warning so the project compiles.</string>
+    <string>We actually don't need location when app is in background. It is better to not allow it.</string>
 
 </dict>
 </plist>
