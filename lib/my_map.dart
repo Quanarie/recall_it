@@ -26,7 +26,7 @@ class _MyMapState extends State<MyMap> {
   final mapController = MapController();
 
   List<MyPoint> _loadedPointsToDisplay = [];
-  int? _indexOfPointWithVisibleDescription;
+  int? _indexOfPointWithOpenedDescription;
 
   static double tapThresholdScreenDistance = 50.0;
 
@@ -89,69 +89,8 @@ class _MyMapState extends State<MyMap> {
             userAgentPackageName: 'recall.it',
             tileBuilder: myTileBuilder,
           ),
-          MarkerLayer(
-            markers: [
-              ..._loadedPointsToDisplay.map(
-                (pointToBeMarkedOnMap) {
-                  return Marker(
-                    width: 120.0,
-                    height: 120.0,
-                    point: pointToBeMarkedOnMap.toLatLng(),
-                    child: Center(
-                      child: GestureDetector(
-                        onLongPressStart: (details) {
-                          _rememberPointDragStartPosition(pointToBeMarkedOnMap);
-                        },
-                        onLongPressMoveUpdate: (details) {
-                          _moveDraggedPointOnMap(details, pointToBeMarkedOnMap);
-                        },
-                        onLongPressEnd: (details) {
-                          _updatePointPositionInDb(pointToBeMarkedOnMap);
-                          _fetchAndUpdatePoints();
-                        },
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              color: hexToColor(pointToBeMarkedOnMap.hexColor),
-                              size: 40,
-                            ),
-                            if (_indexOfPointWithVisibleDescription != null &&
-                                _indexOfPointWithVisibleDescription ==
-                                    _loadedPointsToDisplay
-                                        .indexOf(pointToBeMarkedOnMap))
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.black87, size: 24),
-                                  tooltip: 'Delete point',
-                                  onPressed: () {
-                                    _indexOfPointWithVisibleDescription = null;
-                                    _deletePoint(pointToBeMarkedOnMap);
-                                    _fetchAndUpdatePoints();
-                                  },
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          CurrentLocationLayer(
-            positionStream: _userPositionStream,
-            headingStream: _userHeadingStream,
-          ),
+          _getMarkerLayer(),
+          _getUserLocationMarkerLayer(),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -160,6 +99,81 @@ class _MyMapState extends State<MyMap> {
         backgroundColor: Colors.white,
         child: const Icon(Icons.my_location, color: Colors.black87),
       ),
+    );
+  }
+
+  MarkerLayer _getMarkerLayer() {
+    return MarkerLayer(
+      markers: [
+        ..._loadedPointsToDisplay.map(
+          (pointToBeMarkedOnMap) {
+            return Marker(
+              width: 120.0,
+              height: 120.0,
+              point: pointToBeMarkedOnMap.toLatLng(),
+              child: Center(
+                child: GestureDetector(
+                  onLongPressStart: (details) {
+                    _rememberPointDragStartPosition(pointToBeMarkedOnMap);
+                  },
+                  onLongPressMoveUpdate: (details) {
+                    _moveDraggedPointOnMap(details, pointToBeMarkedOnMap);
+                  },
+                  onLongPressEnd: (details) {
+                    _updatePointPositionInDb(pointToBeMarkedOnMap);
+                    _fetchAndUpdatePoints();
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        color: hexToColor(pointToBeMarkedOnMap.hexColor),
+                        size: 40,
+                      ),
+                      if (_isPointWithOpenedDescription(pointToBeMarkedOnMap))
+                        _getPointDescription(pointToBeMarkedOnMap),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  bool _isPointWithOpenedDescription(MyPoint pointToBeMarkedOnMap) {
+    return _indexOfPointWithOpenedDescription != null &&
+        _indexOfPointWithOpenedDescription ==
+            _loadedPointsToDisplay.indexOf(pointToBeMarkedOnMap);
+  }
+
+  Container _getPointDescription(MyPoint pointToBeMarkedOnMap) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.delete, color: Colors.black87, size: 24),
+        tooltip: 'Delete point',
+        onPressed: () {
+          _indexOfPointWithOpenedDescription = null;
+          _deletePoint(pointToBeMarkedOnMap);
+          _fetchAndUpdatePoints();
+        },
+      ),
+    );
+  }
+
+  CurrentLocationLayer _getUserLocationMarkerLayer() {
+    return CurrentLocationLayer(
+      positionStream: _userPositionStream,
+      headingStream: _userHeadingStream,
     );
   }
 
@@ -200,12 +214,13 @@ class _MyMapState extends State<MyMap> {
       var indexOfClosestPointToTap = findIndexOfClosestPointToGivenCoordinates(
           tapCoordinates, _loadedPointsToDisplay);
       if (arePointsCloseEnoughOnScreen(
-          tapCoordinates,
-          _loadedPointsToDisplay[indexOfClosestPointToTap!].toLatLng(),
-          mapController.camera,
-          tapThresholdScreenDistance)) {
-        if (_indexOfPointWithVisibleDescription == indexOfClosestPointToTap) {
-          _closeVisiblePointDescription();
+        tapCoordinates,
+        _loadedPointsToDisplay[indexOfClosestPointToTap!].toLatLng(),
+        mapController.camera,
+        tapThresholdScreenDistance,
+      )) {
+        if (_indexOfPointWithOpenedDescription == indexOfClosestPointToTap) {
+          _closeOpenedPointDescription();
         } else {
           _openPointDescription(indexOfClosestPointToTap);
         }
@@ -221,12 +236,12 @@ class _MyMapState extends State<MyMap> {
   }
 
   void _openPointDescription(int indexOfClosestPointToTap) {
-    _indexOfPointWithVisibleDescription = indexOfClosestPointToTap;
+    _indexOfPointWithOpenedDescription = indexOfClosestPointToTap;
     setState(() {});
   }
 
-  void _closeVisiblePointDescription() {
-    _indexOfPointWithVisibleDescription = null;
+  void _closeOpenedPointDescription() {
+    _indexOfPointWithOpenedDescription = null;
     setState(() {});
   }
 
