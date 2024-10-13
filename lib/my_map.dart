@@ -1,10 +1,10 @@
-// import 'dart:developer' as dev;
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:recall_it/db_operations.dart';
@@ -28,64 +28,33 @@ class _MyMapState extends State<MyMap> {
   List<MyPoint> _loadedPointsToDisplay = [];
   int? _indexOfPointWithVisibleDescription;
 
-  static double tapThresholdScreenDistance = 50;
+  static double tapThresholdScreenDistance = 50.0;
 
   Offset? _startingPointDragPosition;
 
   LatLng? _userCoordinates;
-  Timer? _updateUserPositionTimer;
+  final StreamController<
+      LocationMarkerPosition> _positionStreamController = StreamController<
+      LocationMarkerPosition>();
   static double zoomInUserLocationValue = 15.0;
 
   @override
   void initState() {
     super.initState();
     _requestLocationPermission();
-    _updateUserPositionTimer =
-        Timer.periodic(const Duration(seconds: 5), (timer) {
-      _getUserLocation();
-    });
-
+    _startListeningToUserLocationChanges();
     _fetchAndUpdatePoints();
   }
 
-  @override
-  void dispose() {
-    _updateUserPositionTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _requestLocationPermission() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          dev.log("Location permissions are denied");
-        });
-      } else if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          dev.log("Location permissions are permanently denied");
-        });
-      } else {
-        dev.log("Location permissions granted");
-      }
-    } else if (permission == LocationPermission.deniedForever) {
+  Future<void> _startListeningToUserLocationChanges() async {
+    Geolocator.getPositionStream().listen((Position p) {
       setState(() {
-        dev.log("Location permissions are permanently denied");
+        _userCoordinates = LatLng(p.latitude, p.longitude);
+        _positionStreamController.add(LocationMarkerPosition(
+            latitude: p.latitude,
+            longitude: p.longitude,
+            accuracy: p.accuracy));
       });
-    } else {
-      dev.log("Location permissions granted");
-    }
-  }
-
-  Future<void> _getUserLocation() async {
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-    setState(() {
-      _userCoordinates = LatLng(position.latitude, position.longitude);
     });
   }
 
@@ -121,7 +90,7 @@ class _MyMapState extends State<MyMap> {
           MarkerLayer(
             markers: [
               ..._loadedPointsToDisplay.map(
-                (pointToBeMarkedOnMap) {
+                    (pointToBeMarkedOnMap) {
                   return Marker(
                     width: 120.0,
                     height: 120.0,
@@ -175,15 +144,24 @@ class _MyMapState extends State<MyMap> {
                   );
                 },
               ),
-              if (_userCoordinates != null)
-                Marker(
-                  width: 80.0,
-                  height: 80.0,
-                  point: _userCoordinates!,
-                  child: const Icon(Icons.location_on,
-                      color: Colors.red, size: 45),
-                ),
             ],
+          ),
+          CurrentLocationLayer(
+            positionStream: _positionStreamController.stream,
+            style: LocationMarkerStyle(
+              marker: DefaultLocationMarker(
+                child: Container(
+                  width: 20.0,
+                  height: 20.0,
+                  decoration: const BoxDecoration(
+                    color: Colors.black87,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              markerSize: const Size(20, 20),
+              markerDirection: MarkerDirection.heading,
+            ),
           ),
         ],
       ),
@@ -208,8 +186,8 @@ class _MyMapState extends State<MyMap> {
         .toOffset();
   }
 
-  void _moveDraggedPointOnMap(
-      LongPressMoveUpdateDetails details, MyPoint pointToBeMarkedOnMap) {
+  void _moveDraggedPointOnMap(LongPressMoveUpdateDetails details,
+      MyPoint pointToBeMarkedOnMap) {
     setState(() {
       Offset offsetInPixels = details.offsetFromOrigin;
 
@@ -292,6 +270,31 @@ class _MyMapState extends State<MyMap> {
   void _closeVisiblePointDescription() {
     _indexOfPointWithVisibleDescription = null;
     setState(() {});
+  }
+
+  Future<void> _requestLocationPermission() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          dev.log("Location permissions are denied");
+        });
+      } else if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          dev.log("Location permissions are permanently denied");
+        });
+      } else {
+        dev.log("Location permissions granted");
+      }
+    } else if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        dev.log("Location permissions are permanently denied");
+      });
+    } else {
+      dev.log("Location permissions granted");
+    }
   }
 
   void _savePointToDb(MyPoint point) {
