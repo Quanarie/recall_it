@@ -8,6 +8,7 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:recall_it/db_operations.dart';
+import 'package:recall_it/utils/my_tile_builder.dart';
 
 import 'models/my_point.dart';
 import 'utils/color.dart';
@@ -33,9 +34,8 @@ class _MyMapState extends State<MyMap> {
   Offset? _startingPointDragPosition;
 
   LatLng? _userCoordinates;
-  final StreamController<
-      LocationMarkerPosition> _positionStreamController = StreamController<
-      LocationMarkerPosition>();
+  final StreamController<LocationMarkerPosition> _userPositionStreamController =
+      StreamController<LocationMarkerPosition>();
   static double zoomInUserLocationValue = 15.0;
 
   @override
@@ -50,7 +50,7 @@ class _MyMapState extends State<MyMap> {
     Geolocator.getPositionStream().listen((Position p) {
       setState(() {
         _userCoordinates = LatLng(p.latitude, p.longitude);
-        _positionStreamController.add(LocationMarkerPosition(
+        _userPositionStreamController.add(LocationMarkerPosition(
             latitude: p.latitude,
             longitude: p.longitude,
             accuracy: p.accuracy));
@@ -69,7 +69,8 @@ class _MyMapState extends State<MyMap> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        backgroundColor: Colors.black87,
+        title: Text(widget.title, style: const TextStyle(color: Colors.white)),
       ),
       body: FlutterMap(
         mapController: mapController,
@@ -86,11 +87,12 @@ class _MyMapState extends State<MyMap> {
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'recall.it',
+            tileBuilder: myTileBuilder,
           ),
           MarkerLayer(
             markers: [
               ..._loadedPointsToDisplay.map(
-                    (pointToBeMarkedOnMap) {
+                (pointToBeMarkedOnMap) {
                   return Marker(
                     width: 120.0,
                     height: 120.0,
@@ -147,20 +149,23 @@ class _MyMapState extends State<MyMap> {
             ],
           ),
           CurrentLocationLayer(
-            positionStream: _positionStreamController.stream,
+            positionStream: _userPositionStreamController.stream,
             style: LocationMarkerStyle(
               marker: DefaultLocationMarker(
                 child: Container(
                   width: 20.0,
                   height: 20.0,
                   decoration: const BoxDecoration(
-                    color: Colors.black87,
+                    color: Color(0x907900FF),
                     shape: BoxShape.circle,
                   ),
                 ),
               ),
               markerSize: const Size(20, 20),
               markerDirection: MarkerDirection.heading,
+              headingSectorRadius: 100,
+              headingSectorColor: const Color(0x907900FF),
+              accuracyCircleColor: const Color(0x1AA327F5),
             ),
           ),
         ],
@@ -168,8 +173,8 @@ class _MyMapState extends State<MyMap> {
       floatingActionButton: FloatingActionButton(
         onPressed: _zoomToUserLocation,
         tooltip: 'Zoom to My Location',
-        backgroundColor: Colors.black,
-        child: const Icon(Icons.my_location, color: Colors.white),
+        backgroundColor: Colors.white,
+        child: const Icon(Icons.my_location, color: Colors.black87),
       ),
     );
   }
@@ -186,8 +191,8 @@ class _MyMapState extends State<MyMap> {
         .toOffset();
   }
 
-  void _moveDraggedPointOnMap(LongPressMoveUpdateDetails details,
-      MyPoint pointToBeMarkedOnMap) {
+  void _moveDraggedPointOnMap(
+      LongPressMoveUpdateDetails details, MyPoint pointToBeMarkedOnMap) {
     setState(() {
       Offset offsetInPixels = details.offsetFromOrigin;
 

@@ -12,7 +12,7 @@ class MyPoint {
     required this.latitude,
     required this.longitude,
     this.description = "No description",
-    this.hexColor = "FF000000",
+    this.hexColor = "FFFFFFFF",
   });
 
   @override
