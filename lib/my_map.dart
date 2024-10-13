@@ -1,17 +1,16 @@
 // import 'dart:developer' as dev;
 import 'dart:async';
-import 'dart:developer' as dev;
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:recall_it/db_operations.dart';
-import 'package:recall_it/utils/my_tile_builder.dart';
 
+import 'db_operations.dart';
 import 'models/my_point.dart';
 import 'utils/color.dart';
+import 'utils/my_point.dart';
+import 'utils/my_tile_builder.dart';
 
 class MyMap extends StatefulWidget {
   const MyMap({super.key, required this.title});
@@ -198,9 +197,13 @@ class _MyMapState extends State<MyMap> {
     if (_loadedPointsToDisplay.isEmpty) {
       coordinatesToBeSavedAsPoint = tapCoordinates;
     } else {
-      var indexOfClosestPointToTap = _findClosestPointIndex(tapCoordinates);
-      if (_arePointsCloseEnoughOnScreen(tapCoordinates,
-          _loadedPointsToDisplay[indexOfClosestPointToTap!].toLatLng())) {
+      var indexOfClosestPointToTap = findIndexOfClosestPointToGivenCoordinates(
+          tapCoordinates, _loadedPointsToDisplay);
+      if (arePointsCloseEnoughOnScreen(
+          tapCoordinates,
+          _loadedPointsToDisplay[indexOfClosestPointToTap!].toLatLng(),
+          mapController.camera,
+          tapThresholdScreenDistance)) {
         if (_indexOfPointWithVisibleDescription == indexOfClosestPointToTap) {
           _closeVisiblePointDescription();
         } else {
@@ -215,44 +218,6 @@ class _MyMapState extends State<MyMap> {
       _savePointToDb(MyPoint.fromLatLng(coordinatesToBeSavedAsPoint));
       _fetchAndUpdatePoints();
     }
-  }
-
-  int? _findClosestPointIndex(LatLng point) {
-    double closestDistance = double.infinity;
-    int? closestPoint;
-
-    for (int i = 0; i < _loadedPointsToDisplay.length; i++) {
-      MyPoint loadedPoint = _loadedPointsToDisplay[i];
-      double distance = _calculateDistance(
-        point,
-        loadedPoint.toLatLng(),
-      );
-
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestPoint = i;
-      }
-    }
-
-    return closestPoint;
-  }
-
-  double _calculateDistance(LatLng p1, LatLng p2) {
-    var p = 0.017453292519943295;
-    var a = 0.5 -
-        cos((p2.latitude - p1.latitude) * p) / 2 +
-        cos(p1.latitude * p) *
-            cos(p2.latitude * p) *
-            (1 - cos((p2.longitude - p1.longitude) * p)) /
-            2;
-    return 12742 * asin(sqrt(a));
-  }
-
-  bool _arePointsCloseEnoughOnScreen(LatLng point1, LatLng point2) {
-    var camera = mapController.camera;
-    var p1 = camera.latLngToScreenPoint(point1);
-    var p2 = camera.latLngToScreenPoint(point2);
-    return p1.distanceTo(p2) <= tapThresholdScreenDistance;
   }
 
   void _openPointDescription(int indexOfClosestPointToTap) {
