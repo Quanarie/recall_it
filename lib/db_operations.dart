@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:latlong2/latlong.dart';
+import 'package:recall_it/utils/color.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'models/my_point.dart';
@@ -30,6 +33,18 @@ class SqfliteCrudOperations {
       {
         "latitude": newCoordinates.latitude,
         "longitude": newCoordinates.longitude,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updatePointColor(int id, String hexColor) async {
+    final db = await openDb();
+    await db.update(
+      'point',
+      {
+        "hexColor": hexColor,
       },
       where: 'id = ?',
       whereArgs: [id],
