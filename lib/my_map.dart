@@ -1,5 +1,4 @@
 // import 'dart:developer' as dev;
-import 'dart:developer' as dev;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'color_picker.dart';
 import 'db_operations.dart';
+import 'description_editor.dart';
 import 'models/my_point.dart';
 import 'utils/color.dart';
 import 'utils/my_point.dart';
@@ -38,8 +38,6 @@ class _MyMapState extends State<MyMap> {
   LocationMarkerPosition? _mostRecentUserPosition;
   late final Stream<LocationMarkerHeading?> _userHeadingStream;
   static double zoomInUserLocationValue = 15.0;
-
-  bool _isColorPickerVisible = false;
 
   @override
   void initState() {
@@ -99,21 +97,21 @@ class _MyMapState extends State<MyMap> {
               _getMarkerLayer(),
             ],
           ),
-          if (_isColorPickerVisible)
-            Positioned(
-              right: 10,
-              top: 10,
-              child: ColorPicker(
-                onColorSelected: (color) {
-                  _updatePointColorInDb(_loadedPointsToDisplay[_indexOfPointWithOpenedDescription!], color);
-                  _hidePointEditWindow();
-                  _fetchAndUpdatePoints();
-                },
-              ),
-            ),
+          _getScaleToCurrentPositionButton(),
+          if (_indexOfPointWithOpenedDescription != null) ...[
+            _getColorPicker(),
+            _getDescriptionEditor(),
+          ],
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+    );
+  }
+
+  Positioned _getScaleToCurrentPositionButton() {
+    return Positioned(
+      right: 20,
+      bottom: 105,
+      child: FloatingActionButton(
         onPressed: _zoomToUserLocation,
         tooltip: 'Zoom to My Location',
         backgroundColor: Colors.white,
@@ -152,7 +150,7 @@ class _MyMapState extends State<MyMap> {
                         size: 40,
                       ),
                       if (_isPointWithOpenedDescription(pointToBeMarkedOnMap))
-                        _getPointDescription(pointToBeMarkedOnMap),
+                        _showPointDeleteButton(pointToBeMarkedOnMap),
                     ],
                   ),
                 ),
@@ -164,13 +162,47 @@ class _MyMapState extends State<MyMap> {
     );
   }
 
+  Positioned _getColorPicker() {
+    return Positioned(
+      right: 10,
+      top: 10,
+      child: ColorPicker(
+        onColorSelected: (color) {
+          _updatePointColorInDb(
+              _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!],
+              color);
+          _fetchAndUpdatePoints();
+        },
+      ),
+    );
+  }
+
+  Positioned _getDescriptionEditor() {
+    return Positioned(
+      right: 15,
+      bottom: 20,
+      child: DescriptionEditor(
+        currentDescription:
+            _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!]
+                .description,
+        onDescriptionSubmitted: (newDescription) {
+          _updatePointDescriptionInDb(
+              _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!],
+              newDescription);
+          _hidePointEditWindow();
+          _fetchAndUpdatePoints();
+        },
+      ),
+    );
+  }
+
   bool _isPointWithOpenedDescription(MyPoint pointToBeMarkedOnMap) {
     return _indexOfPointWithOpenedDescription != null &&
         _indexOfPointWithOpenedDescription ==
             _loadedPointsToDisplay.indexOf(pointToBeMarkedOnMap);
   }
 
-  Container _getPointDescription(MyPoint pointToBeMarkedOnMap) {
+  Container _showPointDeleteButton(MyPoint pointToBeMarkedOnMap) {
     return Container(
       width: 40,
       height: 40,
@@ -245,6 +277,8 @@ class _MyMapState extends State<MyMap> {
         } else {
           _showPointEditWindow(indexOfClosestPointToTap);
         }
+      } else if (_indexOfPointWithOpenedDescription != null) {
+        _hidePointEditWindow();
       } else {
         coordinatesToBeSavedAsPoint = tapCoordinates;
       }
@@ -259,14 +293,12 @@ class _MyMapState extends State<MyMap> {
   void _showPointEditWindow(int indexOfClosestPointToTap) {
     setState(() {
       _indexOfPointWithOpenedDescription = indexOfClosestPointToTap;
-      _isColorPickerVisible = true;
     });
   }
 
   void _hidePointEditWindow() {
     setState(() {
       _indexOfPointWithOpenedDescription = null;
-      _isColorPickerVisible = false;
     });
   }
 
@@ -283,6 +315,9 @@ class _MyMapState extends State<MyMap> {
     _dbOperations.updatePointColor(point.id!, colorToHex(color));
   }
 
+  void _updatePointDescriptionInDb(MyPoint point, String description) {
+    _dbOperations.updatePointDescription(point.id!, description);
+  }
 
   void _deletePoint(MyPoint pointToBeDeleted) {
     _dbOperations.deletePoint(pointToBeDeleted.id!);

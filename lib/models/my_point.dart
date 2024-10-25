@@ -11,7 +11,7 @@ class MyPoint {
     this.id,
     required this.latitude,
     required this.longitude,
-    this.description = "No description",
+    this.description = "",
     this.hexColor = "FFFFFFFF",
   });
 

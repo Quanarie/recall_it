@@ -51,6 +51,19 @@ class SqfliteCrudOperations {
     );
   }
 
+  Future<void> updatePointDescription(int id, String description) async {
+    final db = await openDb();
+    await db.update(
+      'point',
+      {
+        "description": description,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+
   Future<void> deletePoint(int id) async {
     final db = await openDb();
     db.delete('point', where: 'id = ?', whereArgs: [id]);
