@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'color_picker.dart';
 import 'db_operations.dart';
 import 'description_editor.dart';
+import 'main.dart';
 import 'models/my_point.dart';
 import 'utils/color.dart';
 import 'utils/my_point.dart';
@@ -245,7 +246,7 @@ class _MyMapState extends State<MyMap> {
   }
 
   Positioned _getSearchBar() {
-    TextEditingController _searchController = TextEditingController();
+    TextEditingController searchController = TextEditingController();
 
     return Positioned(
       top: 10,
@@ -271,7 +272,7 @@ class _MyMapState extends State<MyMap> {
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: _searchController,
+                      controller: searchController,
                       decoration: const InputDecoration(
                         hintText: "Search for an address",
                         border: InputBorder.none,
@@ -284,13 +285,13 @@ class _MyMapState extends State<MyMap> {
                   IconButton(
                     icon: const Icon(Icons.search),
                     onPressed: () async {
-                      await _fetchCoordinatesAndPlaceMarker(_searchController.text);
+                      await _fetchCoordinatesAndPlaceMarker(searchController.text);
                     },
                   ),
                   IconButton(
                     icon: const Icon(Icons.cancel),
                     onPressed: () {
-                      _searchController.clear();
+                      searchController.clear();
                       FocusScope.of(context).unfocus();
                     },
                   ),
@@ -318,8 +319,7 @@ class _MyMapState extends State<MyMap> {
       mapController.move(LatLng(lat, lng), zoomInUserLocationValue);
       _fetchAndUpdatePoints();
     } catch (e) {
-      print('Error fetching location: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(content: Text('Failed to fetch location for "$address".')),
       );
     }

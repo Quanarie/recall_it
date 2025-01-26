@@ -5,8 +5,8 @@ Color hexToColor(String hexColor) {
 }
 
 String colorToHex(Color color) {
-  return '${color.alpha.toRadixString(16).padLeft(2, '0')}'
-      '${color.red.toRadixString(16).padLeft(2, '0')}'
-      '${color.green.toRadixString(16).padLeft(2, '0')}'
-      '${color.blue.toRadixString(16).padLeft(2, '0').toUpperCase()}';
+  return '${(color.a * 255).toInt().toRadixString(16).padLeft(2, '0')}'
+      '${(color.r * 255).toInt().toRadixString(16).padLeft(2, '0')}'
+      '${(color.g * 255).toInt().toRadixString(16).padLeft(2, '0')}'
+      '${(color.b * 255).toInt().toRadixString(16).padLeft(2, '0').toUpperCase()}';
 }

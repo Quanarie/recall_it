@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'my_map.dart';
 
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 void main() {
   runApp(const MyApp());
 }
@@ -18,6 +20,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const MyMap(title: 'Recallit'),
+      scaffoldMessengerKey: scaffoldMessengerKey,
     );
   }
 }

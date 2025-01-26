@@ -11,10 +11,10 @@ class DescriptionEditor extends StatefulWidget {
   });
 
   @override
-  _DescriptionEditorState createState() => _DescriptionEditorState();
+  DescriptionEditorState createState() => DescriptionEditorState();
 }
 
-class _DescriptionEditorState extends State<DescriptionEditor> {
+class DescriptionEditorState extends State<DescriptionEditor> {
   late TextEditingController _controller;
 
   @override
