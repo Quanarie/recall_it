@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'color_picker.dart';
 import 'db_operations.dart';
@@ -101,6 +102,7 @@ class _MyMapState extends State<MyMap> {
           if (_indexOfPointWithOpenedDescription != null) ...[
             _getColorPicker(),
             _getDescriptionEditor(),
+            _getExportOptionsPicker(),
           ],
         ],
       ),
@@ -194,6 +196,49 @@ class _MyMapState extends State<MyMap> {
         },
       ),
     );
+  }
+
+  Positioned _getExportOptionsPicker() {
+    final MyPoint point =
+    _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!];
+
+    final String googleMapsUrl =
+        'https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}';
+    final String appleMapsUrl =
+        'http://maps.apple.com/?ll=${point.latitude},${point.longitude}&q=${point.latitude},${point.longitude}';
+
+    return Positioned(
+      left: 10,
+      top: 10,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.map, color: Colors.white),
+            label: const Text('Google', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              _launchUrl(googleMapsUrl);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.map_outlined, color: Colors.white),
+            label: const Text('Apple', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              _launchUrl(appleMapsUrl);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _launchUrl(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url)) {
+      throw Exception('Could not launch $url');
+    }
   }
 
   bool _isPointWithOpenedDescription(MyPoint pointToBeMarkedOnMap) {
