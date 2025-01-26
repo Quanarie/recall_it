@@ -1,7 +1,4 @@
-import 'dart:ui';
-
 import 'package:latlong2/latlong.dart';
-import 'package:recall_it/utils/color.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'models/my_point.dart';

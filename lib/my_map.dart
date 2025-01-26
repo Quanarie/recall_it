@@ -1,4 +1,4 @@
-import 'dart:developer' as dev;
+// import 'dart:developer' as dev;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -30,7 +30,7 @@ class _MyMapState extends State<MyMap> {
   final mapController = MapController();
 
   List<MyPoint> _loadedPointsToDisplay = [];
-  int? _indexOfPointWithOpenedDescription;
+  int? _indexOfActivePoint;
 
   static double tapThresholdScreenDistance = 50.0;
 
@@ -101,7 +101,7 @@ class _MyMapState extends State<MyMap> {
           ),
           _getSearchBar(),
           _getScaleToCurrentPositionButton(),
-          if (_indexOfPointWithOpenedDescription != null) ...[
+          if (_indexOfActivePoint != null) ...[
             _getColorPicker(),
             _getDescriptionEditor(),
             _getExportOptionsPicker(),
@@ -153,7 +153,7 @@ class _MyMapState extends State<MyMap> {
                         color: hexToColor(pointToBeMarkedOnMap.hexColor),
                         size: 40,
                       ),
-                      if (_isPointWithOpenedDescription(pointToBeMarkedOnMap))
+                      if (_isActivePoint(pointToBeMarkedOnMap))
                         _showPointDeleteButton(pointToBeMarkedOnMap),
                     ],
                   ),
@@ -173,7 +173,7 @@ class _MyMapState extends State<MyMap> {
       child: ColorPicker(
         onColorSelected: (color) {
           _updatePointColorInDb(
-              _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!],
+              _loadedPointsToDisplay[_indexOfActivePoint!],
               color);
           _fetchAndUpdatePoints();
         },
@@ -186,13 +186,13 @@ class _MyMapState extends State<MyMap> {
       right: 15,
       bottom: 20,
       child: DescriptionEditor(
-        key: ValueKey(_indexOfPointWithOpenedDescription),
+        key: ValueKey(_indexOfActivePoint),
         currentDescription:
-            _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!]
+            _loadedPointsToDisplay[_indexOfActivePoint!]
                 .description,
         onDescriptionSubmitted: (newDescription) {
           _updatePointDescriptionInDb(
-              _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!],
+              _loadedPointsToDisplay[_indexOfActivePoint!],
               newDescription);
           _hidePointEditWindow();
           _fetchAndUpdatePoints();
@@ -203,7 +203,7 @@ class _MyMapState extends State<MyMap> {
 
   Positioned _getExportOptionsPicker() {
     final MyPoint point =
-    _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!];
+    _loadedPointsToDisplay[_indexOfActivePoint!];
 
     final String googleMapsUrl =
         'https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}';
@@ -325,9 +325,9 @@ class _MyMapState extends State<MyMap> {
     }
   }
 
-  bool _isPointWithOpenedDescription(MyPoint pointToBeMarkedOnMap) {
-    return _indexOfPointWithOpenedDescription != null &&
-        _indexOfPointWithOpenedDescription ==
+  bool _isActivePoint(MyPoint pointToBeMarkedOnMap) {
+    return _indexOfActivePoint != null &&
+        _indexOfActivePoint ==
             _loadedPointsToDisplay.indexOf(pointToBeMarkedOnMap);
   }
 
@@ -343,7 +343,7 @@ class _MyMapState extends State<MyMap> {
         icon: const Icon(Icons.delete, color: Colors.black87, size: 24),
         tooltip: 'Delete point',
         onPressed: () {
-          _indexOfPointWithOpenedDescription = null;
+          _indexOfActivePoint = null;
           _deletePoint(pointToBeMarkedOnMap);
           _hidePointEditWindow();
           _fetchAndUpdatePoints();
@@ -401,12 +401,12 @@ class _MyMapState extends State<MyMap> {
         mapController.camera,
         tapThresholdScreenDistance,
       )) {
-        if (_indexOfPointWithOpenedDescription == indexOfClosestPointToTap) {
+        if (_indexOfActivePoint == indexOfClosestPointToTap) {
           _hidePointEditWindow();
         } else {
           _showPointEditWindow(indexOfClosestPointToTap);
         }
-      } else if (_indexOfPointWithOpenedDescription != null) {
+      } else if (_indexOfActivePoint != null) {
         _hidePointEditWindow();
       } else {
         coordinatesToBeSavedAsPoint = tapCoordinates;
@@ -421,13 +421,13 @@ class _MyMapState extends State<MyMap> {
 
   void _showPointEditWindow(int indexOfClosestPointToTap) {
     setState(() {
-      _indexOfPointWithOpenedDescription = indexOfClosestPointToTap;
+      _indexOfActivePoint = indexOfClosestPointToTap;
     });
   }
 
   void _hidePointEditWindow() {
     setState(() {
-      _indexOfPointWithOpenedDescription = null;
+      _indexOfActivePoint = null;
     });
   }
 
