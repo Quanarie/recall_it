@@ -1,9 +1,10 @@
-// import 'dart:developer' as dev;
+import 'dart:developer' as dev;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -98,6 +99,7 @@ class _MyMapState extends State<MyMap> {
               _getMarkerLayer(),
             ],
           ),
+          _getSearchBar(),
           _getScaleToCurrentPositionButton(),
           if (_indexOfPointWithOpenedDescription != null) ...[
             _getColorPicker(),
@@ -167,7 +169,7 @@ class _MyMapState extends State<MyMap> {
   Positioned _getColorPicker() {
     return Positioned(
       right: 10,
-      top: 10,
+      top: 80,
       child: ColorPicker(
         onColorSelected: (color) {
           _updatePointColorInDb(
@@ -184,6 +186,7 @@ class _MyMapState extends State<MyMap> {
       right: 15,
       bottom: 20,
       child: DescriptionEditor(
+        key: ValueKey(_indexOfPointWithOpenedDescription),
         currentDescription:
             _loadedPointsToDisplay[_indexOfPointWithOpenedDescription!]
                 .description,
@@ -209,7 +212,7 @@ class _MyMapState extends State<MyMap> {
 
     return Positioned(
       left: 10,
-      top: 10,
+      top: 80,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -238,6 +241,87 @@ class _MyMapState extends State<MyMap> {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url)) {
       throw Exception('Could not launch $url');
+    }
+  }
+
+  Positioned _getSearchBar() {
+    TextEditingController _searchController = TextEditingController();
+
+    return Positioned(
+      top: 10,
+      left: 10,
+      right: 10,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: "Search for an address",
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: (query) async {
+                        await _fetchCoordinatesAndPlaceMarker(query);
+                      },
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () async {
+                      await _fetchCoordinatesAndPlaceMarker(_searchController.text);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.cancel),
+                    onPressed: () {
+                      _searchController.clear();
+                      FocusScope.of(context).unfocus();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fetchCoordinatesAndPlaceMarker(String address) async {
+    if (address.isEmpty) return;
+
+    try {
+      List<Location> locations = await locationFromAddress(address);
+      final lat = locations.first.latitude;
+      final lng = locations.first.longitude;
+
+      MyPoint pointToSave = MyPoint.fromLatLng(LatLng(lat, lng));
+      pointToSave.description = address;
+
+      _savePointToDb(pointToSave);
+      mapController.move(LatLng(lat, lng), zoomInUserLocationValue);
+      _fetchAndUpdatePoints();
+    } catch (e) {
+      print('Error fetching location: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch location for "$address".')),
+      );
     }
   }
 
