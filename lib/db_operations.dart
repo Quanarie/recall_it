@@ -4,22 +4,38 @@ import 'package:sqflite/sqflite.dart';
 import 'models/my_point.dart';
 
 class SqfliteCrudOperations {
-  Future<Database> openDb() async {
-    var databasesPath = await getDatabasesPath();
-    var path = '$databasesPath/myDb16.db';
+  Database? _db;
+  String _dbName = 'myDb16.db';
 
-    return await openDatabase(
+  void setDbName(String dbName) {
+    _dbName = dbName;
+  }
+
+  Future<Database> openDb() async {
+    if (_db != null) return _db!;
+
+    var databasesPath = await getDatabasesPath();
+    var path = '$databasesPath/$_dbName';
+
+    _db = await openDatabase(
       path,
       version: 1,
       onCreate: (db, version) {
         return db.execute(MyPoint.getCreateQuery());
       },
     );
+
+    return _db!;
   }
 
-  Future<void> insertPoint(MyPoint point) async {
+  Future<void> clearDb() async {
     final db = await openDb();
-    db.insert('point', point.toMap(),
+    await db.delete('point');
+  }
+
+  Future<int> insertPoint(MyPoint point) async {
+    final db = await openDb();
+    return db.insert('point', point.toMap(),
         conflictAlgorithm: ConflictAlgorithm.rollback);
   }
 
